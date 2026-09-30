@@ -1,7 +1,10 @@
 // src/components/summaries/SummaryHistory.jsx
 import SummaryCard from './SummaryCard'
 
-export default function SummaryHistory({ summaries, onDelete, onView }) {
+export default function SummaryHistory({ summaries, onDelete, onView, loading = false }) {
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500 dark:text-gray-400">Chargement de l'historique…</div>
+  }
   if (summaries.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">

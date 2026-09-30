@@ -2,13 +2,17 @@
 import { useState } from 'react'
 import Button from '../ui/Button'
 
-export default function SummaryResult({ summary, url, onRegenerate, isRegenerating = false }) {
+export default function SummaryResult({ summary, onRegenerate, isRegenerating = false }) {
   const [copied, setCopied] = useState(false)
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(summary)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(summary)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
   }
 
   if (!summary) return null
@@ -35,7 +39,7 @@ export default function SummaryResult({ summary, url, onRegenerate, isRegenerati
           )}
         </div>
       </div>
-      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{summary}</p>
+      <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{summary}</p>
     </div>
   )
 }

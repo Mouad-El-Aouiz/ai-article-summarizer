@@ -12,8 +12,16 @@ import LoadingSpinner from './components/common/LoadingSpinner'
 import { supabase } from './services/supabaseClient'
 
 function App() {
-  const { user, loading: authLoading } = useAuth()
-  const { summaries, loadSummaries, addSummary, deleteSummary } = useSummaries(user?.id)
+  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth()
+  const {
+    summaries,
+    loading: historyLoading,
+    error: historyError,
+    clearError: clearHistoryError,
+    loadSummaries,
+    addSummary,
+    deleteSummary,
+  } = useSummaries(user?.id)
   
   const [currentSummary, setCurrentSummary] = useState(null)
   const [currentUrl, setCurrentUrl] = useState('')
@@ -42,7 +50,11 @@ function App() {
     
     // Sauvegarder dans l'historique seulement si ce n'est pas une régénération
     if (!isRegenerating) {
-      await addSummary(url, summary, title)
+      try {
+        await addSummary(url, summary, title)
+      } catch {
+        setError("Le résumé a été généré, mais n'a pas pu être ajouté à l'historique.")
+      }
     }
   }
 
@@ -98,24 +110,31 @@ function App() {
   }
 
   if (!user) {
-    return <Login />
+    return <Login onSignIn={signInWithGoogle} />
   }
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
-      <Header />
+      <Header user={user} onSignOut={signOut} />
       
       <main className="max-w-4xl mx-auto p-6">
         <SummaryForm
           onSummaryGenerated={handleSummaryGenerated}
           onLoading={setLoading}
           onError={setError}
-          initialUrl={isRegenerating && currentType === 'url' ? currentUrl : ''}
           initialType={currentType}
           isRegenerating={isRegenerating}
         />
         
-        {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
+        {(error || historyError) && (
+          <ErrorMessage
+            message={error || historyError}
+            onDismiss={() => {
+              setError(null)
+              clearHistoryError()
+            }}
+          />
+        )}
         
         {loading && <LoadingSpinner text={isRegenerating ? "Régénération du résumé..." : "Génération du résumé en cours..."} />}
         
@@ -123,36 +142,20 @@ function App() {
           <div className="mb-8">
             <SummaryResult
               summary={currentSummary}
-              url={currentUrl}
               onRegenerate={handleRegenerate}
               isRegenerating={isRegenerating}
-              type={currentType}
             />
           </div>
         )}
         
         <SummaryHistory
           summaries={summaries}
+          loading={historyLoading}
           onDelete={deleteSummary}
           onView={handleViewSummary}
         />
       </main>
       
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-      `}</style>
     </div>
   )
 }

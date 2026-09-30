@@ -12,10 +12,11 @@ const sizes = {
   large: 'px-6 py-3'
 }
 
-export default function Button({ children, onClick, variant = 'primary', size = 'medium', disabled = false, className = '', ...props }) {
+export default function Button({ children, onClick, type = 'button', variant = 'primary', size = 'medium', disabled = false, className = '', ...props }) {
   return (
     <button
       onClick={onClick}
+      type={type}
       disabled={disabled}
       className={`rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}

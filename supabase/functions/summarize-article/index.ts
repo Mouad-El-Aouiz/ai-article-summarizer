@@ -1,269 +1,212 @@
-import pdfParse from 'pdf-parse';
+import pdfParse from 'pdf-parse'
+
+const MAX_ARTICLE_BYTES = 2 * 1024 * 1024
+const MAX_PDF_BASE64_LENGTH = 14 * 1024 * 1024
+const MAX_CONTENT_LENGTH = 12_000
+const REQUEST_TIMEOUT_MS = 12_000
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Fonction OCR via Optiic (gratuit, 50 req/jour)
-async function extractPdfViaOCR(pdfBase64: string): Promise<string> {
-  const apiKey = Deno.env.get('OPTIIC_API_KEY')
-  if (!apiKey) {
-    throw new Error('Clé API Optiic non configurée pour OCR')
+class HttpError extends Error {
+  constructor(public status: number, message: string) {
+    super(message)
   }
-  
+}
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+function isPrivateHostname(hostname: string) {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return true
+  if (host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80:')) return true
+
+  const parts = host.split('.').map(Number)
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false
+
+  const [a, b] = parts
+  return a === 0 || a === 10 || a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a >= 224
+}
+
+function validatePublicUrl(value: unknown) {
+  if (typeof value !== 'string' || value.length > 2_048) throw new HttpError(400, 'URL invalide')
+
+  let parsed: URL
   try {
-    // Convertir base64 en buffer
-    const binaryString = atob(pdfBase64)
-    const bytes = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i)
-    }
-    
-    // Créer un formulaire multipart
-    const formData = new FormData()
-    const blob = new Blob([bytes], { type: 'application/pdf' })
-    formData.append('file', blob, 'document.pdf')
-    formData.append('language', 'fra') // Français
-    
-    const response = await fetch('https://api.optiic.dev/ocr', {
-      method: 'POST',
+    parsed = new URL(value)
+  } catch {
+    throw new HttpError(400, 'URL invalide')
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || isPrivateHostname(parsed.hostname)) {
+    throw new HttpError(400, 'Seules les URL web publiques sont acceptées')
+  }
+  return parsed
+}
+
+async function fetchWithSafeRedirects(initialUrl: URL) {
+  let currentUrl = initialUrl
+
+  for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
+    const response = await fetch(currentUrl, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
-        'Authorization': apiKey,
-      },
-      body: formData,
-    })
-    
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Erreur Optiic:', errorText)
-      throw new Error(`OCR échoué: ${response.status}`)
-    }
-    
-    const data = await response.json()
-    const text = data.text || ''
-    
-    if (!text || text.length < 20) {
-      throw new Error('Aucun texte reconnu par OCR')
-    }
-    
-    return text.substring(0, 8000)
-    
-  } catch (error) {
-    console.error('Erreur OCR:', error.message)
-    throw new Error('Impossible de lire le PDF (format non supporté ou image non lisible)')
-  }
-}
-
-// Fallback : extraction basique pour PDF textuels
-async function extractPdfTextBasic(pdfBase64: string): Promise<string> {
-  try {
-    const binaryString = atob(pdfBase64)
-    const bytes = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i)
-    }
-    
-    let text = ''
-    let inTextObject = false
-    let textBuffer = ''
-    
-    for (let i = 0; i < bytes.length; i++) {
-      const char = String.fromCharCode(bytes[i])
-      
-      if (char === 'B' && bytes[i+1] === 84) {
-        inTextObject = true
-        textBuffer = ''
-        i += 1
-      } else if (char === 'E' && bytes[i+1] === 84 && inTextObject) {
-        inTextObject = false
-        if (textBuffer.trim()) {
-          text += textBuffer + ' '
-        }
-        i += 1
-      } else if (inTextObject && (char.match(/[a-zA-Z0-9.,!?;:()[\]{}'"\u00C0-\u00FF -]/) || char === ' ')) {
-        textBuffer += char
-      }
-    }
-    
-    text = text.replace(/\s+/g, ' ').trim()
-    return text.substring(0, 8000)
-    
-  } catch (error) {
-    console.error('Erreur extraction basique:', error)
-    return ''
-  }
-}
-
-// Fonction principale d'extraction PDF (avec fallback)
-async function extractPdfContent(pdfBase64: string): Promise<string> {
-  console.log('📄 Extraction du texte du PDF avec pdf-parse...');
-
-  try {
-    // 1. Convertir le base64 en un format compréhensible par pdf-parse (Uint8Array)
-    const binaryString = atob(pdfBase64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // 2. La magie de pdf-parse : il extrait tout le texte du document
-    const data = await pdfParse(bytes);
-    
-    // 3. Vérifier qu'on a bien du texte
-    const extractedText = data.text;
-    if (!extractedText || extractedText.trim().length < 50) {
-      console.warn('⚠️ pdf-parse a trouvé très peu de texte. Le PDF est peut-être une image scannée.');
-      throw new Error('Le PDF semble être une image scannée sans texte lisible.');
-    }
-
-    console.log(`✅ Extraction réussie ! ${extractedText.length} caractères extraits.`);
-    // On limite la taille pour ne pas surcharger l'API Groq
-    return extractedText.substring(0, 8000);
-
-  } catch (error) {
-    console.error('❌ Erreur avec pdf-parse:', error.message);
-    // On relance l'erreur pour qu'elle soit capturée par le bloc "catch" principal de ta fonction
-    throw new Error(`Impossible d'extraire le texte de ce PDF : ${error.message}`);
-  }
-}
-
-// Extraction d'article web
-async function extractArticleContent(url: string): Promise<{ title: string; content: string }> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': 'ArticleSummarizer/1.0',
+        Accept: 'text/html,application/xhtml+xml',
       },
     })
-    
-    const html = await response.text()
-    
-    let title = ''
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-    if (titleMatch) title = titleMatch[1]
-    
-    let content = html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-    
-    content = content.substring(0, 8000)
-    
-    if (content.length < 100) {
-      throw new Error('Contenu insuffisant')
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location')
+      if (!location) throw new HttpError(422, "Redirection d'article invalide")
+      currentUrl = validatePublicUrl(new URL(location, currentUrl).toString())
+      continue
     }
-    
-    return { title, content }
+    return response
+  }
+
+  throw new HttpError(422, 'Trop de redirections')
+}
+
+async function readLimitedText(response: Response) {
+  const declaredLength = Number(response.headers.get('content-length') || 0)
+  if (declaredLength > MAX_ARTICLE_BYTES) throw new HttpError(413, 'Article trop volumineux')
+  if (!response.body) return ''
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let received = 0
+  let result = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    received += value.byteLength
+    if (received > MAX_ARTICLE_BYTES) {
+      await reader.cancel()
+      throw new HttpError(413, 'Article trop volumineux')
+    }
+    result += decoder.decode(value, { stream: true })
+  }
+  return result + decoder.decode()
+}
+
+async function extractArticleContent(rawUrl: unknown) {
+  const response = await fetchWithSafeRedirects(validatePublicUrl(rawUrl))
+  if (!response.ok) throw new HttpError(422, `Le site distant a répondu avec le statut ${response.status}`)
+
+  const contentType = response.headers.get('content-type') || ''
+  if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
+    throw new HttpError(415, "L'URL ne pointe pas vers une page HTML")
+  }
+
+  const html = await readLimitedText(response)
+  const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() || 'Article web'
+  const content = html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_CONTENT_LENGTH)
+
+  if (content.length < 100) throw new HttpError(422, "Le contenu de l'article est insuffisant")
+  return { title, content }
+}
+
+async function extractPdfContent(pdfBase64: unknown) {
+  if (typeof pdfBase64 !== 'string' || pdfBase64.length === 0) throw new HttpError(400, 'PDF requis')
+  if (pdfBase64.length > MAX_PDF_BASE64_LENGTH) throw new HttpError(413, 'Le PDF dépasse 10 Mo')
+
+  try {
+    const binary = atob(pdfBase64)
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+    if (new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') {
+      throw new HttpError(415, 'Le fichier fourni n’est pas un PDF valide')
+    }
+
+    const data = await pdfParse(bytes)
+    const text = data.text?.replace(/\s+/g, ' ').trim() || ''
+    if (text.length < 50) throw new HttpError(422, 'Ce PDF ne contient pas assez de texte extractible')
+    return text.slice(0, MAX_CONTENT_LENGTH)
   } catch (error) {
-    console.error('Erreur extraction article:', error)
-    throw new Error("Impossible d'extraire le contenu de l'article")
+    if (error instanceof HttpError) throw error
+    console.error('PDF extraction failed:', error)
+    throw new HttpError(422, "Impossible d'extraire le texte de ce PDF")
   }
 }
 
-// Génération du résumé avec Groq
-async function generateSummary(content: string, type: string): Promise<string> {
-  const groqApiKey = Deno.env.get('GROQ_API_KEY')
-  if (!groqApiKey) {
-    throw new Error('Clé API Groq non configurée')
-  }
-  
-  const prompt = type === 'pdf' 
-    ? `Voici le contenu extrait d'un document PDF. Fais un résumé clair et concis en 3 à 5 phrases des points principaux :\n\n${content}`
-    : `Résume cet article de façon claire et concise en 3 à 5 phrases :\n\n${content}`
-  
-  const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+async function generateSummary(content: string, type: 'url' | 'pdf') {
+  const apiKey = Deno.env.get('GROQ_API_KEY')
+  if (!apiKey) throw new HttpError(500, 'Service de résumé non configuré')
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${groqApiKey}`,
-      'Content-Type': 'application/json',
-    },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       messages: [
         {
           role: 'system',
-          content: 'Tu es un assistant qui résume des articles et documents PDF de façon claire et concise en 3 à 5 phrases, en français.'
+          content: 'Tu résumes fidèlement en français. Réponds en 3 à 5 phrases claires, sans inventer de faits.',
         },
         {
           role: 'user',
-          content: prompt
-        }
+          content: `Résume ce ${type === 'pdf' ? 'document PDF' : 'contenu d’article'} :\n\n${content}`,
+        },
       ],
-      max_tokens: 400,
-      temperature: 0.3,
-    })
+      max_tokens: 450,
+      temperature: 0.2,
+    }),
   })
-  
-  if (!groqResponse.ok) {
-    const errorText = await groqResponse.text()
-    console.error('Erreur Groq:', errorText)
-    throw new Error(`Erreur API Groq: ${groqResponse.status}`)
+
+  if (!response.ok) {
+    console.error('Groq request failed:', response.status, await response.text())
+    throw new HttpError(502, 'Le service de résumé est temporairement indisponible')
   }
-  
-  const aiData = await groqResponse.json()
-  return aiData.choices[0]?.message?.content || "Désolé, je n'ai pas pu générer un résumé."
+
+  const data = await response.json()
+  const summary = data.choices?.[0]?.message?.content?.trim()
+  if (!summary) throw new HttpError(502, 'Aucun résumé reçu du service IA')
+  return summary
 }
 
-// Handler principal
-Deno.serve(async (req) => {
-  console.log('📥 Requête reçue, méthode:', req.method)
-  
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders })
-  }
+Deno.serve(async (request) => {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders })
+  if (request.method !== 'POST') return jsonResponse({ error: 'Méthode non autorisée' }, 405)
 
   try {
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Non authentifié' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    const contentLength = Number(request.headers.get('content-length') || 0)
+    if (contentLength > MAX_PDF_BASE64_LENGTH + 1_024) throw new HttpError(413, 'Requête trop volumineuse')
 
-    const body = await req.json()
-    const { url, pdfBase64, type = 'url' } = body
-    
-    console.log('Type:', type)
-    
-    let content = ''
-    let title = ''
-    
-    if (type === 'url' && url) {
-      console.log('📰 Extraction article:', url)
-      const article = await extractArticleContent(url)
-      content = article.content
-      title = article.title
-    } 
-    else if (type === 'pdf' && pdfBase64) {
-      console.log('📄 Extraction PDF...')
-      content = await extractPdfContent(pdfBase64)
-      title = 'Document PDF'
-    }
-    else {
-      throw new Error('URL ou PDF requis')
-    }
-    
-    console.log('📝 Contenu extrait, longueur:', content.length)
-    
-    const summary = await generateSummary(content, type)
-    console.log('✅ Résumé généré')
-    
-    return new Response(
-      JSON.stringify({ summary, title }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-    
+    const body = await request.json()
+    if (body?.type !== 'url' && body?.type !== 'pdf') throw new HttpError(400, 'Type de contenu invalide')
+
+    const article = body.type === 'url'
+      ? await extractArticleContent(body.url)
+      : { title: 'Document PDF', content: await extractPdfContent(body.pdfBase64) }
+
+    return jsonResponse({ summary: await generateSummary(article.content, body.type), title: article.title })
   } catch (error) {
-    console.error('❌ Erreur:', error.message)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    const status = error instanceof HttpError ? error.status : 500
+    const message = error instanceof HttpError ? error.message : 'Une erreur inattendue est survenue'
+    console.error('Summarization failed:', error)
+    return jsonResponse({ error: message }, status)
   }
 })

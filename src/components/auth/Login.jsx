@@ -1,8 +1,20 @@
-import { useAuth } from '../../hooks/useAuth'
+import { useState } from 'react'
 import Button from '../ui/Button'
 
-export default function Login() {
-  const { signInWithGoogle, loading } = useAuth()
+export default function Login({ onSignIn }) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSignIn = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await onSignIn()
+    } catch {
+      setError('La connexion a échoué. Veuillez réessayer.')
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
@@ -18,7 +30,7 @@ export default function Login() {
         </div>
 
         <Button
-          onClick={signInWithGoogle}
+          onClick={handleSignIn}
           disabled={loading}
           className="w-full flex items-center justify-center gap-3"
         >
@@ -31,8 +43,10 @@ export default function Login() {
           <span>{loading ? 'Connexion...' : 'Se connecter avec Google'}</span>
         </Button>
 
+        {error && <p className="mt-4 text-sm text-center text-red-600 dark:text-red-400" role="alert">{error}</p>}
+
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-6 text-center">
-          En continuant, vous acceptez nos conditions générales
+          Vos résumés restent associés à votre compte.
         </p>
       </div>
     </div>

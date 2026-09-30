@@ -1,5 +1,5 @@
 // src/components/summaries/SummaryForm.jsx
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
 import { supabase } from '../../services/supabaseClient'
@@ -8,23 +8,13 @@ export default function SummaryForm({
   onSummaryGenerated, 
   onLoading, 
   onError,
-  initialUrl = '',
   initialType = 'url',
   isRegenerating = false
 }) {
   const [localInputType, setLocalInputType] = useState(initialType)
-  const [url, setUrl] = useState(initialUrl)
+  const [url, setUrl] = useState('')
   const [pdfFile, setPdfFile] = useState(null)
-  const [pdfBase64, setPdfBase64] = useState(null)
   const fileInputRef = useRef(null)
-
-  // Mettre à jour quand initialUrl ou initialType change
-  useEffect(() => {
-    if (initialUrl) {
-      setUrl(initialUrl)
-      setLocalInputType(initialType)
-    }
-  }, [initialUrl, initialType])
 
   const pdfToBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -32,14 +22,14 @@ export default function SummaryForm({
       reader.readAsDataURL(file)
       reader.onload = () => {
         const base64 = reader.result.split(',')[1]
-        setPdfBase64(base64)
         resolve(base64)
       }
       reader.onerror = reject
     })
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event) => {
+    event?.preventDefault()
     onLoading(true)
     onError(null)
 
@@ -64,7 +54,7 @@ export default function SummaryForm({
       if (error) throw new Error(error.message)
       if (!data?.summary) throw new Error('Pas de résumé reçu')
 
-      onSummaryGenerated({
+      await onSummaryGenerated({
         summary: data.summary,
         title: data.title,
         url: localInputType === 'url' ? url : `PDF: ${pdfFile.name}`,
@@ -75,7 +65,6 @@ export default function SummaryForm({
       // Reset PDF state seulement si ce n'est pas une régénération
       if (localInputType === 'pdf' && !isRegenerating) {
         setPdfFile(null)
-        setPdfBase64(null)
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
     } catch (err) {
@@ -85,15 +74,8 @@ export default function SummaryForm({
     }
   }
 
-  const handleReset = () => {
-    setUrl('')
-    setPdfFile(null)
-    setPdfBase64(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8">
+    <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8">
       <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">
         {isRegenerating ? '🔄 Régénération du résumé' : '✨ Nouveau résumé'}
       </h2>
@@ -101,13 +83,15 @@ export default function SummaryForm({
       {/* Toggle */}
       <div className="flex gap-2 mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-fit">
         <button
-          onClick={() => { setLocalInputType('url'); setPdfFile(null); setPdfBase64(null); setUrl('') }}
+          type="button"
+          onClick={() => { setLocalInputType('url'); setPdfFile(null); setUrl('') }}
           className={`px-4 py-2 rounded-md transition ${localInputType === 'url' ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'} ${isRegenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
           disabled={isRegenerating}
         >
           🔗 Article (URL)
         </button>
         <button
+          type="button"
           onClick={() => { setLocalInputType('pdf'); setUrl('') }}
           className={`px-4 py-2 rounded-md transition ${localInputType === 'pdf' ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'} ${isRegenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
           disabled={isRegenerating}
@@ -124,17 +108,12 @@ export default function SummaryForm({
             placeholder="Collez l'URL d'un article ici..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             disabled={isRegenerating}
+            aria-label="URL de l'article à résumer"
           />
-          <Button onClick={handleSubmit} disabled={isRegenerating || !url.trim()}>
+          <Button type="submit" disabled={isRegenerating || !url.trim()}>
             {isRegenerating ? 'Régénération...' : '✨ Résumer'}
           </Button>
-          {initialUrl && !isRegenerating && (
-            <Button onClick={handleReset} variant="secondary">
-              Nouveau résumé
-            </Button>
-          )}
         </div>
       ) : (
         <div className="mb-6">
@@ -158,16 +137,16 @@ export default function SummaryForm({
           </div>
           {pdfFile && (
             <div className="mt-4 flex gap-3">
-              <Button onClick={handleSubmit} disabled={isRegenerating} className="flex-1">
+              <Button type="submit" disabled={isRegenerating} className="flex-1">
                 📄 Résumer le PDF
               </Button>
-              <Button onClick={() => { setPdfFile(null); setPdfBase64(null); if(fileInputRef.current) fileInputRef.current.value = '' }} variant="secondary">
+              <Button onClick={() => { setPdfFile(null); if(fileInputRef.current) fileInputRef.current.value = '' }} variant="secondary">
                 Annuler
               </Button>
             </div>
           )}
         </div>
       )}
-    </div>
+    </form>
   )
 }

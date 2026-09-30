@@ -1,7 +1,8 @@
 {
-  "name": "summary-app",
+  "name": "article-summarizer-ai",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Assistant de résumé d'articles et de PDF propulsé par React, Supabase et Groq.",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -10,8 +10,7 @@ export function useAuth() {
     // Vérifier la session au chargement
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    }).finally(() => setLoading(false))
 
     // Écouter les changements
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -33,7 +32,8 @@ export function useAuth() {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
   }
 
   return { user, loading, signInWithGoogle, signOut }

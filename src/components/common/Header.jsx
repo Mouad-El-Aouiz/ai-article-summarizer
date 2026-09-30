@@ -1,10 +1,8 @@
 // src/components/common/Header.jsx
-import { useAuth } from '../../hooks/useAuth'
-import { useTheme } from '../../hooks/useTheme'
+import { useTheme } from '../../context/ThemeContext'
 import Button from '../ui/Button'
 
-export default function Header() {
-  const { user, signOut } = useAuth()
+export default function Header({ user, onSignOut }) {
   const { darkMode, setDarkMode } = useTheme()
 
   return (
@@ -33,12 +31,12 @@ export default function Header() {
             onClick={() => setDarkMode(!darkMode)}
             variant="secondary"
             size="small"
-            aria-label="Dark mode"
+            aria-label={darkMode ? 'Activer le thème clair' : 'Activer le thème sombre'}
           >
             {darkMode ? '☀️' : '🌙'}
           </Button>
           
-          <Button onClick={signOut} variant="danger" size="small">
+          <Button onClick={onSignOut} variant="danger" size="small">
             Déconnexion
           </Button>
         </div>

@@ -11,18 +11,21 @@ export function useSummaries(userId) {
     if (!userId) return
     
     setLoading(true)
-    const { data, error: fetchError } = await supabase
-      .from('summaries')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-    
-    if (fetchError) {
-      setError(fetchError.message)
-    } else {
+    setError(null)
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('summaries')
+        .select('id, url, title, summary, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (fetchError) throw fetchError
       setSummaries(data || [])
+    } catch {
+      setError("Impossible de charger l'historique.")
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [userId])
 
   const addSummary = async (url, summary, title) => {
@@ -46,10 +49,15 @@ export function useSummaries(userId) {
       .delete()
       .eq('id', id)
     
-    if (error) throw error
+    if (error) {
+      setError('Impossible de supprimer ce résumé.')
+      return
+    }
     
     setSummaries(prev => prev.filter(item => item.id !== id))
   }
 
-  return { summaries, loading, error, loadSummaries, addSummary, deleteSummary }
+  const clearError = () => setError(null)
+
+  return { summaries, loading, error, clearError, loadSummaries, addSummary, deleteSummary }
 }
