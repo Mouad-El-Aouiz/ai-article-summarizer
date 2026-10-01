@@ -1,4 +1,5 @@
 import pdfParse from 'pdf-parse'
+import { withSupabase } from '@supabase/server'
 
 const MAX_ARTICLE_BYTES = 2 * 1024 * 1024
 const MAX_PDF_BASE64_LENGTH = 14 * 1024 * 1024
@@ -187,8 +188,7 @@ async function generateSummary(content: string, type: 'url' | 'pdf') {
   return summary
 }
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders })
+const handleAuthenticatedRequest = withSupabase({ auth: 'user' }, async (request) => {
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
 
   try {
@@ -209,4 +209,9 @@ Deno.serve(async (request) => {
     console.error('Summarization failed:', error)
     return jsonResponse({ error: message }, status)
   }
+})
+
+Deno.serve((request) => {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders })
+  return handleAuthenticatedRequest(request)
 })
