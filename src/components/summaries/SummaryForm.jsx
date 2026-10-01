@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
-import { supabase } from '../../services/supabaseClient'
+import { generateSummary } from '../../services/summaryService'
 
 export default function SummaryForm({ 
   onSummaryGenerated, 
@@ -49,10 +49,7 @@ export default function SummaryForm({
         body = { pdfBase64: base64, type: 'pdf' }
       }
 
-      const { data, error } = await supabase.functions.invoke('summarize-article', { body })
-      
-      if (error) throw new Error(error.message)
-      if (!data?.summary) throw new Error('No summary was returned')
+      const data = await generateSummary(body)
 
       await onSummaryGenerated({
         summary: data.summary,

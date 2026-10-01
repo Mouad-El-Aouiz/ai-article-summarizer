@@ -9,7 +9,7 @@ import SummaryResult from './components/summaries/SummaryResult'
 import SummaryHistory from './components/summaries/SummaryHistory'
 import ErrorMessage from './components/common/ErrorMessage'
 import LoadingSpinner from './components/common/LoadingSpinner'
-import { supabase } from './services/supabaseClient'
+import { generateSummary } from './services/summaryService'
 
 function App() {
   const { user, loading: authLoading, signIn, signUp, signOut } = useAuth()
@@ -76,10 +76,7 @@ function App() {
         throw new Error('Unable to regenerate: source data is missing')
       }
       
-      const { data, error: invokeError } = await supabase.functions.invoke('summarize-article', { body })
-      
-      if (invokeError) throw new Error(invokeError.message)
-      if (!data?.summary) throw new Error('No summary was returned')
+      const data = await generateSummary(body)
       
       setCurrentSummary(data.summary)
       
