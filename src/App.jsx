@@ -12,7 +12,7 @@ import LoadingSpinner from './components/common/LoadingSpinner'
 import { supabase } from './services/supabaseClient'
 
 function App() {
-  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth()
+  const { user, loading: authLoading, signIn, signUp, signOut } = useAuth()
   const {
     summaries,
     loading: historyLoading,
@@ -26,8 +26,8 @@ function App() {
   const [currentSummary, setCurrentSummary] = useState(null)
   const [currentUrl, setCurrentUrl] = useState('')
   const [currentTitle, setCurrentTitle] = useState('')
-  const [currentType, setCurrentType] = useState('url')  // ← NOUVEAU : stocker le type
-  const [currentPdfBase64, setCurrentPdfBase64] = useState(null)  // ← NOUVEAU : stocker le PDF pour régénération
+  const [currentType, setCurrentType] = useState('url')
+  const [currentPdfBase64, setCurrentPdfBase64] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [isRegenerating, setIsRegenerating] = useState(false)
@@ -41,19 +41,19 @@ function App() {
   const handleSummaryGenerated = async ({ summary, title, url, type, pdfBase64 = null }) => {
     setCurrentSummary(summary)
     setCurrentUrl(url)
-    setCurrentTitle(title || (type === 'url' ? 'Article résumé' : 'PDF résumé'))
-    setCurrentType(type)  // ← Sauvegarder le type
+    setCurrentTitle(title || (type === 'url' ? 'Summarized article' : 'Summarized PDF'))
+    setCurrentType(type)
     if (pdfBase64) {
-      setCurrentPdfBase64(pdfBase64)  // ← Sauvegarder le PDF pour régénération
+      setCurrentPdfBase64(pdfBase64)
     }
     setError(null)
     
-    // Sauvegarder dans l'historique seulement si ce n'est pas une régénération
+    // Save the result only when it was generated from a new submission.
     if (!isRegenerating) {
       try {
         await addSummary(url, summary, title)
       } catch {
-        setError("Le résumé a été généré, mais n'a pas pu être ajouté à l'historique.")
+        setError('The summary was generated but could not be added to your history.')
       }
     }
   }
@@ -68,24 +68,21 @@ function App() {
     try {
       let body = {}
       
-      // ← CRUCIAL : Utiliser le bon type
       if (currentType === 'url') {
         body = { url: currentUrl, type: 'url' }
       } else if (currentType === 'pdf' && currentPdfBase64) {
         body = { pdfBase64: currentPdfBase64, type: 'pdf' }
       } else {
-        throw new Error('Impossible de régénérer : données manquantes')
+        throw new Error('Unable to regenerate: source data is missing')
       }
       
       const { data, error: invokeError } = await supabase.functions.invoke('summarize-article', { body })
       
       if (invokeError) throw new Error(invokeError.message)
-      if (!data?.summary) throw new Error('Pas de résumé reçu')
+      if (!data?.summary) throw new Error('No summary was returned')
       
-      // Mettre à jour le résumé actuel
       setCurrentSummary(data.summary)
       
-      // Sauvegarder le nouveau résumé dans l'historique
       await addSummary(currentUrl, data.summary, currentTitle)
       
     } catch (err) {
@@ -100,17 +97,17 @@ function App() {
     setCurrentSummary(summary.summary)
     setCurrentUrl(summary.url)
     setCurrentTitle(summary.title)
-    setCurrentType(summary.url?.startsWith('PDF:') ? 'pdf' : 'url')  // ← Déduire le type
-    setCurrentPdfBase64(null)  // On ne peut pas régénérer un PDF depuis l'historique (pas stocké)
+    setCurrentType(summary.url?.startsWith('PDF:') ? 'pdf' : 'url')
+    setCurrentPdfBase64(null) // PDF contents are not stored in the history.
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   if (authLoading) {
-    return <LoadingSpinner text="Chargement..." fullScreen />
+    return <LoadingSpinner text="Loading..." fullScreen />
   }
 
   if (!user) {
-    return <Login onSignIn={signInWithGoogle} />
+    return <Login onSignIn={signIn} onSignUp={signUp} />
   }
 
   return (
@@ -136,7 +133,7 @@ function App() {
           />
         )}
         
-        {loading && <LoadingSpinner text={isRegenerating ? "Régénération du résumé..." : "Génération du résumé en cours..."} />}
+        {loading && <LoadingSpinner text={isRegenerating ? 'Regenerating summary...' : 'Generating summary...'} />}
         
         {currentSummary && (
           <div className="mb-8">

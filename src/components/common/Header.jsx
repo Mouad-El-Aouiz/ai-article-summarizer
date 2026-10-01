@@ -11,7 +11,7 @@ export default function Header({ user, onSignOut }) {
         <div className="flex items-center gap-2">
           <span className="text-2xl">📝</span>
           <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-            Assistant de Résumé IA
+            AI Summary Assistant
           </h1>
         </div>
         
@@ -31,13 +31,13 @@ export default function Header({ user, onSignOut }) {
             onClick={() => setDarkMode(!darkMode)}
             variant="secondary"
             size="small"
-            aria-label={darkMode ? 'Activer le thème clair' : 'Activer le thème sombre'}
+            aria-label={darkMode ? 'Switch to light theme' : 'Switch to dark theme'}
           >
             {darkMode ? '☀️' : '🌙'}
           </Button>
           
           <Button onClick={onSignOut} variant="danger" size="small">
-            Déconnexion
+            Sign out
           </Button>
         </div>
       </div>

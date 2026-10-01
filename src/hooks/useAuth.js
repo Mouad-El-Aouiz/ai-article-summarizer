@@ -1,4 +1,3 @@
-// src/hooks/useAuth.js
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabaseClient'
 
@@ -7,34 +6,66 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Vérifier la session au chargement
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-    }).finally(() => setLoading(false))
+    let active = true
+    let authStateReceived = false
 
-    // Écouter les changements
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+    const { data: { subscription } } =
+      supabase.auth.onAuthStateChange((_event, session) => {
+        authStateReceived = true
 
-    return () => subscription.unsubscribe()
+        if (active) {
+          setUser(session?.user ?? null)
+          setLoading(false)
+        }
+      })
+
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (!active || authStateReceived) return
+
+        setUser(error ? null : data.session?.user ?? null)
+      })
+      .catch(() => {
+        if (active && !authStateReceived) setUser(null)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
   }, [])
 
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+  const signUp = async (email, password) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
       options: {
-        redirectTo: window.location.origin,
-        queryParams: { access_type: 'offline', prompt: 'consent' }
-      }
+        emailRedirectTo: window.location.origin,
+      },
     })
+
     if (error) throw error
+    return data
+  }
+
+  const signIn = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+
+    if (error) throw error
+    return data
   }
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
+
     if (error) throw error
   }
 
-  return { user, loading, signInWithGoogle, signOut }
+  return { user, loading, signUp, signIn, signOut }
 }

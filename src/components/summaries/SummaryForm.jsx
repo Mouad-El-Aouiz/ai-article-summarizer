@@ -38,11 +38,11 @@ export default function SummaryForm({
       let pdfData = null
       
       if (localInputType === 'url') {
-        if (!url.trim()) throw new Error('Veuillez entrer une URL')
+        if (!url.trim()) throw new Error('Enter an article URL')
         body = { url: url.trim(), type: 'url' }
       } else {
-        if (!pdfFile) throw new Error('Veuillez sélectionner un PDF')
-        if (pdfFile.size > 10 * 1024 * 1024) throw new Error('Le PDF ne doit pas dépasser 10 Mo')
+        if (!pdfFile) throw new Error('Select a PDF file')
+        if (pdfFile.size > 10 * 1024 * 1024) throw new Error('The PDF must not exceed 10 MB')
         
         const base64 = await pdfToBase64(pdfFile)
         pdfData = base64
@@ -52,17 +52,17 @@ export default function SummaryForm({
       const { data, error } = await supabase.functions.invoke('summarize-article', { body })
       
       if (error) throw new Error(error.message)
-      if (!data?.summary) throw new Error('Pas de résumé reçu')
+      if (!data?.summary) throw new Error('No summary was returned')
 
       await onSummaryGenerated({
         summary: data.summary,
         title: data.title,
         url: localInputType === 'url' ? url : `PDF: ${pdfFile.name}`,
         type: localInputType,
-        pdfBase64: pdfData  // ← Passer le base64 pour régénération
+        pdfBase64: pdfData
       })
 
-      // Reset PDF state seulement si ce n'est pas une régénération
+      // Keep the current PDF available while regenerating it.
       if (localInputType === 'pdf' && !isRegenerating) {
         setPdfFile(null)
         if (fileInputRef.current) fileInputRef.current.value = ''
@@ -77,7 +77,7 @@ export default function SummaryForm({
   return (
     <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8">
       <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">
-        {isRegenerating ? '🔄 Régénération du résumé' : '✨ Nouveau résumé'}
+        {isRegenerating ? '🔄 Regenerate summary' : '✨ New summary'}
       </h2>
 
       {/* Toggle */}
@@ -105,14 +105,14 @@ export default function SummaryForm({
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <Input
             type="url"
-            placeholder="Collez l'URL d'un article ici..."
+            placeholder="Paste an article URL here..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={isRegenerating}
-            aria-label="URL de l'article à résumer"
+            aria-label="URL of the article to summarize"
           />
           <Button type="submit" disabled={isRegenerating || !url.trim()}>
-            {isRegenerating ? 'Régénération...' : '✨ Résumer'}
+            {isRegenerating ? 'Regenerating...' : '✨ Summarize'}
           </Button>
         </div>
       ) : (
@@ -130,18 +130,18 @@ export default function SummaryForm({
             <label htmlFor="pdf-upload" className={`cursor-pointer block ${isRegenerating ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <div className="text-4xl mb-2">📁</div>
               <p className="text-gray-600 dark:text-gray-400">
-                {pdfFile ? pdfFile.name : 'Cliquez ou déposez un PDF ici'}
+                {pdfFile ? pdfFile.name : 'Click or drop a PDF here'}
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Max 10 Mo</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">10 MB maximum</p>
             </label>
           </div>
           {pdfFile && (
             <div className="mt-4 flex gap-3">
               <Button type="submit" disabled={isRegenerating} className="flex-1">
-                📄 Résumer le PDF
+                📄 Summarize PDF
               </Button>
               <Button onClick={() => { setPdfFile(null); if(fileInputRef.current) fileInputRef.current.value = '' }} variant="secondary">
-                Annuler
+                Cancel
               </Button>
             </div>
           )}

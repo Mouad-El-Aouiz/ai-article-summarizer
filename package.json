@@ -2,7 +2,7 @@
   "name": "article-summarizer-ai",
   "private": true,
   "version": "1.0.0",
-  "description": "Assistant de résumé d'articles et de PDF propulsé par React, Supabase et Groq.",
+  "description": "AI-powered article and PDF summarizer built with React, Supabase, and Groq.",
   "type": "module",
   "scripts": {
     "dev": "vite",

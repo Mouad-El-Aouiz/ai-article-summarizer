@@ -1,6 +1,6 @@
 // src/utils/helpers.js
 export const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('fr-FR', {
+  return new Date(dateString).toLocaleDateString('en-US', {
     day: 'numeric',
     month: 'long',
     year: 'numeric'

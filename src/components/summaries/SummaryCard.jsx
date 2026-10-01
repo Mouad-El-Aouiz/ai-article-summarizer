@@ -12,7 +12,7 @@ export default function SummaryCard({ summary, onDelete, onView }) {
               {summary.url.length > 50 ? summary.url.substring(0, 50) + '...' : summary.url}
             </span>
             <span>•</span>
-            <span>{new Date(summary.created_at).toLocaleDateString('fr-FR')}</span>
+            <span>{new Date(summary.created_at).toLocaleDateString('en-US')}</span>
           </div>
           <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-2">
             {summary.summary.length > 200 ? summary.summary.substring(0, 200) + '…' : summary.summary}
@@ -20,11 +20,11 @@ export default function SummaryCard({ summary, onDelete, onView }) {
         </button>
         <button
           onClick={() => {
-            if (window.confirm('Supprimer définitivement ce résumé ?')) onDelete()
+            if (window.confirm('Permanently delete this summary?')) onDelete()
           }}
           className="text-red-400 hover:text-red-600 transition px-2"
-          title="Supprimer"
-          aria-label="Supprimer ce résumé"
+          title="Delete"
+          aria-label="Delete this summary"
         >
           🗑️
         </button>

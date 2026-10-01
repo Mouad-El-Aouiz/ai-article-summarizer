@@ -22,7 +22,7 @@ export function useSummaries(userId) {
       if (fetchError) throw fetchError
       setSummaries(data || [])
     } catch {
-      setError("Impossible de charger l'historique.")
+      setError('Unable to load your summary history.')
     } finally {
       setLoading(false)
     }
@@ -50,7 +50,7 @@ export function useSummaries(userId) {
       .eq('id', id)
     
     if (error) {
-      setError('Impossible de supprimer ce résumé.')
+      setError('Unable to delete this summary.')
       return
     }
     

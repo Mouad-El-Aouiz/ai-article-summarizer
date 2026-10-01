@@ -25,16 +25,16 @@ export default function SummaryResult({ summary, onRegenerate, isRegenerating = 
             <span className="text-lg">✨</span>
           </div>
           <h3 className="font-semibold text-green-800 dark:text-green-300">
-            Résumé intelligent
+            AI summary
           </h3>
         </div>
         <div className="flex gap-2">
           <Button onClick={handleCopy} variant="secondary" size="small">
-            {copied ? '✓ Copié !' : '📋 Copier'}
+            {copied ? '✓ Copied!' : '📋 Copy'}
           </Button>
           {onRegenerate && (
             <Button onClick={onRegenerate} variant="secondary" size="small" disabled={isRegenerating}>
-              {isRegenerating ? '🔄 Régénération...' : '🔄 Régénérer'}
+              {isRegenerating ? '🔄 Regenerating...' : '🔄 Regenerate'}
             </Button>
           )}
         </div>

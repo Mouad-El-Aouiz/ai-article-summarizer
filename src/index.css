@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Animations personnalisées */
+/* Custom animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -18,7 +18,7 @@
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Scrollbar personnalisée */
+/* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -60,7 +60,7 @@
   }
 }
 
-/* Scrollbar personnalisée pour dark mode */
+/* Custom scrollbar for dark mode */
 ::-webkit-scrollbar {
   width: 8px;
 }
