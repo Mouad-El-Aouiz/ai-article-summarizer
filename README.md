@@ -15,6 +15,7 @@ Built with **React 19**, **Vite**, **Tailwind CSS**, **Supabase**, and **Groq**.
 ## Table of Contents
 
 - [Overview](#overview)
+- [Screenshots](#screenshots)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
@@ -37,6 +38,34 @@ AI Article Summarizer lets authenticated users submit a public article URL or up
 Each user has a private summary history protected by PostgreSQL Row Level Security. Summaries can be viewed, copied, regenerated, and deleted from a responsive light or dark interface.
 
 The project uses **Supabase Cloud only**. Docker and a local Supabase stack are not required.
+
+---
+
+## Screenshots
+
+### Workspace
+
+The responsive workspace keeps source input and generated output together in a focused reading interface.
+
+![AI Article Summarizer workspace](docs/screenshots/workspace.png)
+
+### Article URL
+
+Submit a public article URL and review the generated English summary alongside the source controls.
+
+![Article URL summary](docs/screenshots/Article_url.png)
+
+### PDF Document
+
+Upload a text-based PDF of up to 10 MB and summarize it from the same workspace.
+
+![PDF document summary](docs/screenshots/pdf_document.png)
+
+### Saved Summaries
+
+Search, filter, reopen, or delete summaries from the private history associated with the signed-in user.
+
+![Saved summaries](docs/screenshots/saved_summaries.png)
 
 ---
 
