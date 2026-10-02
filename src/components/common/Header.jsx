@@ -1,45 +1,17 @@
-// src/components/common/Header.jsx
+import { FileText, LogOut, Moon, Sun } from 'lucide-react'
 import { useTheme } from '../../context/ThemeContext'
-import Button from '../ui/Button'
 
-export default function Header({ user, onSignOut }) {
+export default function Header({ user, onSignOut, signingOut = false }) {
   const { darkMode, setDarkMode } = useTheme()
-
   return (
-    <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">📝</span>
-          <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-            AI Summary Assistant
-          </h1>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          {user?.user_metadata?.avatar_url && (
-            <img 
-              src={user.user_metadata.avatar_url} 
-              alt="Avatar" 
-              className="w-8 h-8 rounded-full"
-            />
-          )}
-          <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">
-            {user?.email}
-          </span>
-          
-          <Button
-            onClick={() => setDarkMode(!darkMode)}
-            variant="secondary"
-            size="small"
-            aria-label={darkMode ? 'Switch to light theme' : 'Switch to dark theme'}
-          >
-            {darkMode ? '☀️' : '🌙'}
-          </Button>
-          
-          <Button onClick={onSignOut} variant="danger" size="small">
-            Sign out
-          </Button>
-        </div>
+    <header className="site-header">
+      <a className="brand" href="#main"><span className="brand-mark"><FileText size={21} /></span><span>Article<span className="brand-light"> / Summarizer</span></span></a>
+      <div className="header-actions">
+        <span className="header-caption">Your reading workspace</span>
+        <button className="icon-button" type="button" onClick={() => setDarkMode(!darkMode)} title={darkMode ? 'Light theme' : 'Dark theme'} aria-label={darkMode ? 'Light theme' : 'Dark theme'}>
+          {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+        {user && <><span className="user-info"><span className="user-avatar" title={user.email}>{user.email?.slice(0, 1).toUpperCase() || 'U'}</span><span className="user-email">{user.email}</span></span><button className="icon-button" type="button" onClick={onSignOut} disabled={signingOut} title="Sign out" aria-label="Sign out"><LogOut size={18} /></button></>}
       </div>
     </header>
   )

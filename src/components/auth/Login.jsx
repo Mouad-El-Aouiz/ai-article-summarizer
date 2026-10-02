@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import { ArrowRight, Eye, EyeOff, LoaderCircle } from 'lucide-react'
+import Header from '../common/Header'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
 
 export default function Login({ onSignIn, onSignUp }) {
+  const [showPassword, setShowPassword] = useState(false)
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -60,112 +63,27 @@ export default function Login({ onSignIn, onSignUp }) {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
-      <section
-        aria-labelledby="auth-title"
-        className="w-full max-w-md rounded-lg bg-white dark:bg-gray-800 p-6 shadow"
-      >
-        <h1
-          id="auth-title"
-          className="text-2xl font-semibold text-gray-900 dark:text-white"
-        >
-          {isSignUp ? 'Create an account' : 'Sign in'}
-        </h1>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block text-sm text-gray-700 dark:text-gray-200"
-            >
-              Email
-            </label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              disabled={loading}
-              required
-            />
+    <div className="app-shell">
+      <Header />
+      <main id="main" className="auth-layout">
+        <section className="auth-form" aria-labelledby="auth-title">
+          <span className="step-label">YOUR READING WORKSPACE</span>
+          <h1 id="auth-title">{isSignUp ? 'Create your account.' : 'Welcome back.'}</h1>
+          <p className="auth-subtitle">{isSignUp ? 'A fresh start for your reading.' : 'Good to see you again.'}</p>
+          <div className="segmented auth-modes" role="group" aria-label="Account access">
+            <button type="button" className={!isSignUp ? 'selected' : ''} aria-pressed={!isSignUp} onClick={() => isSignUp && changeMode()} disabled={loading}>Sign in</button>
+            <button type="button" className={isSignUp ? 'selected' : ''} aria-pressed={isSignUp} onClick={() => !isSignUp && changeMode()} disabled={loading}>Create account</button>
           </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm text-gray-700 dark:text-gray-200"
-            >
-              Password
-            </label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              minLength={isSignUp ? 6 : undefined}
-              disabled={loading}
-              required
-            />
-          </div>
-
-          {isSignUp && (
-            <div>
-              <label
-                htmlFor="confirm-password"
-                className="mb-2 block text-sm text-gray-700 dark:text-gray-200"
-              >
-                Confirm password
-              </label>
-              <Input
-                id="confirm-password"
-                name="confirm-password"
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                minLength={6}
-                disabled={loading}
-                required
-              />
-            </div>
-          )}
-
-          {error && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </p>
-          )}
-
-          {message && (
-            <p role="status" className="text-sm text-green-700 dark:text-green-400">
-              {message}
-            </p>
-          )}
-
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading
-              ? 'Please wait...'
-              : isSignUp
-                ? 'Create account'
-                : 'Sign in'}
-          </Button>
-        </form>
-
-        <button
-          type="button"
-          onClick={changeMode}
-          disabled={loading}
-          className="mt-5 w-full text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
-        >
-          {isSignUp
-            ? 'Already have an account? Sign in'
-            : "Don't have an account? Create one"}
-        </button>
-      </section>
-    </main>
+          <form onSubmit={handleSubmit} className="auth-fields">
+            <div><label htmlFor="email">Email address</label><Input id="email" name="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={event => setEmail(event.target.value)} disabled={loading} required /></div>
+            <div><label htmlFor="password">Password</label><div className="password-field"><Input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete={isSignUp ? 'new-password' : 'current-password'} value={password} onChange={event => setPassword(event.target.value)} minLength={isSignUp ? 6 : undefined} disabled={loading} required /><button className="icon-button" type="button" title={showPassword ? 'Hide password' : 'Show password'} aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>{isSignUp && <span className="field-hint">At least 6 characters</span>}</div>
+            {isSignUp && <div><label htmlFor="confirm-password">Confirm password</label><Input id="confirm-password" name="confirm-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} minLength={6} disabled={loading} required /></div>}
+            {error && <p role="alert" className="notice notice--error">{error}</p>}
+            {message && <p role="status" className="notice notice--success">{message}</p>}
+            <Button type="submit" disabled={loading} className="auth-submit">{loading ? <LoaderCircle className="spin" size={18} /> : <ArrowRight size={18} />}{loading ? 'Please wait...' : isSignUp ? 'Create account' : 'Sign in'}</Button>
+          </form>
+        </section>
+      </main>
+    </div>
   )
 }

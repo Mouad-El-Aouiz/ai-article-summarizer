@@ -1,45 +1,31 @@
-// src/components/summaries/SummaryResult.jsx
-import { useState } from 'react'
-import Button from '../ui/Button'
+import { useEffect, useRef, useState } from 'react'
+import { Check, Copy, FileText, RotateCcw, LoaderCircle } from 'lucide-react'
 
-export default function SummaryResult({ summary, onRegenerate, isRegenerating = false }) {
+export default function SummaryResult({ summary, title, onRegenerate, isRegenerating = false, loading = false, canRegenerate = true }) {
   const [copied, setCopied] = useState(false)
-
+  const [copyError, setCopyError] = useState('')
+  const timer = useRef(null)
+  useEffect(() => () => clearTimeout(timer.current), [])
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(summary)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setCopied(false)
-    }
+      setCopyError('')
+      clearTimeout(timer.current)
+      timer.current = setTimeout(() => setCopied(false), 2000)
+    } catch { setCopyError('Unable to copy. Please select the text and copy it manually.') }
   }
-
-  if (!summary) return null
-
   return (
-    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border border-green-200 dark:border-green-800 rounded-xl p-5 animate-fadeIn">
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
-            <span className="text-lg">✨</span>
-          </div>
-          <h3 className="font-semibold text-green-800 dark:text-green-300">
-            AI summary
-          </h3>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleCopy} variant="secondary" size="small">
-            {copied ? '✓ Copied!' : '📋 Copy'}
-          </Button>
-          {onRegenerate && (
-            <Button onClick={onRegenerate} variant="secondary" size="small" disabled={isRegenerating}>
-              {isRegenerating ? '🔄 Regenerating...' : '🔄 Regenerate'}
-            </Button>
-          )}
-        </div>
-      </div>
-      <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{summary}</p>
-    </div>
+    <section className="result-section" aria-labelledby="result-heading" aria-busy={loading}>
+      <div className="section-heading"><span className="step-label">02 / SUMMARY</span><div className="result-tools">
+        <button type="button" className="icon-button" disabled={!summary || loading} title={copied ? 'Copied' : 'Copy summary'} aria-label={copied ? 'Copied' : 'Copy summary'} onClick={handleCopy}>{copied ? <Check size={18} /> : <Copy size={18} />}</button>
+        <button type="button" className="icon-button" disabled={!summary || loading || !canRegenerate} title={canRegenerate ? 'Regenerate summary' : 'Select the PDF again to regenerate'} aria-label="Regenerate summary" onClick={onRegenerate}><RotateCcw size={18} className={isRegenerating ? 'spin' : ''} /></button>
+      </div></div>
+      <h2 id="result-heading">{summary ? 'The essential read.' : 'Your summary'}</h2>
+      {loading ? <div className="result-loading" role="status"><LoaderCircle className="spin" size={25} /><span>{isRegenerating ? 'Refreshing your summary...' : 'Reading your source...'}</span><div className="skeleton-lines"><i /><i /><i /><i /></div></div> : summary ? <div className="summary-content"><span className="result-tag"><Check size={13} />Ready</span><h3>{title || 'Untitled summary'}</h3><p>{summary}</p><div className="summary-foot"><FileText size={14} />{summary.trim().split(/\s+/).length} words<span>English</span></div></div> :
+        <div className="result-empty"><div className="document-motif" aria-hidden="true"><FileText size={44} strokeWidth={1} /><span /><span /><span /></div><p>No summary yet</p><span className="muted">Ready when you are.</span></div>}
+      <span className="sr-only" role="status">{copied ? 'Summary copied' : ''}</span>
+      {copyError && <p role="alert" className="inline-error">{copyError}</p>}
+    </section>
   )
 }

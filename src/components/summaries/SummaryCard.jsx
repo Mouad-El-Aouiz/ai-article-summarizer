@@ -1,34 +1,16 @@
-// src/components/summaries/SummaryCard.jsx
-export default function SummaryCard({ summary, onDelete, onView }) {
+import { FileText, Link2, Trash2, ArrowUpRight } from 'lucide-react'
+export default function SummaryCard({ summary, onDelete, onView, busy = false }) {
   const isPdf = summary.url?.startsWith('PDF:')
-
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-      <div className="flex justify-between items-start gap-2">
-        <button type="button" className="flex-1 min-w-0 cursor-pointer text-left" onClick={onView}>
-          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-1 flex-wrap">
-            <span>{isPdf ? '📄' : '🔗'}</span>
-            <span className="truncate">
-              {summary.url.length > 50 ? summary.url.substring(0, 50) + '...' : summary.url}
-            </span>
-            <span>•</span>
-            <span>{new Date(summary.created_at).toLocaleDateString('en-US')}</span>
-          </div>
-          <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-2">
-            {summary.summary.length > 200 ? summary.summary.substring(0, 200) + '…' : summary.summary}
-          </p>
-        </button>
-        <button
-          onClick={() => {
-            if (window.confirm('Permanently delete this summary?')) onDelete()
-          }}
-          className="text-red-400 hover:text-red-600 transition px-2"
-          title="Delete"
-          aria-label="Delete this summary"
-        >
-          🗑️
-        </button>
-      </div>
+    <div className="history-row">
+      <span className={`history-type ${isPdf ? 'history-type--pdf' : ''}`}>{isPdf ? <FileText size={18} /> : <Link2 size={18} />}</span>
+      <button className="history-open" type="button" onClick={onView} disabled={busy}>
+        <strong>{summary.title || (isPdf ? summary.url.slice(5) : summary.url)}</strong>
+        <span>{summary.summary}</span>
+      </button>
+      <span className="history-date">{new Date(summary.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+      <button className="icon-button history-view" type="button" title="Open summary" aria-label="Open summary" onClick={onView} disabled={busy}><ArrowUpRight size={18} /></button>
+      <button className="icon-button delete-button" type="button" title="Delete summary" aria-label="Delete summary" disabled={busy} onClick={() => { if (window.confirm('Permanently delete this summary?')) onDelete() }}><Trash2 size={16} /></button>
     </div>
   )
 }

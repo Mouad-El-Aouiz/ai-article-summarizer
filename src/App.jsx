@@ -31,6 +31,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [isRegenerating, setIsRegenerating] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -43,9 +44,7 @@ function App() {
     setCurrentUrl(url)
     setCurrentTitle(title || (type === 'url' ? 'Summarized article' : 'Summarized PDF'))
     setCurrentType(type)
-    if (pdfBase64) {
-      setCurrentPdfBase64(pdfBase64)
-    }
+    setCurrentPdfBase64(pdfBase64)
     setError(null)
     
     // Save the result only when it was generated from a new submission.
@@ -59,6 +58,7 @@ function App() {
   }
 
   const handleRegenerate = async () => {
+    if (loading) return
     if (!currentUrl && !currentPdfBase64) return
     
     setIsRegenerating(true)
@@ -108,46 +108,50 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
-      <Header user={user} onSignOut={signOut} />
+    <div className="app-shell">
+      <Header user={user} signingOut={signingOut || loading} onSignOut={async () => {
+        setSigningOut(true)
+        try {
+          await signOut()
+          setCurrentSummary(null)
+          setCurrentPdfBase64(null)
+          setCurrentUrl('')
+          setCurrentType('url')
+          setError(null)
+        } catch { setError('Unable to sign out. Please try again.') }
+        finally { setSigningOut(false) }
+      }} />
       
-      <main className="max-w-4xl mx-auto p-6">
+      <main id="main" className="workspace">
+        <div className="workspace-heading"><div><span className="step-label">READ LESS. KNOW MORE.</span><h1>Your workspace</h1></div><span className="workspace-status"><span className="status-dot" />Ready to read</span></div>
+        {(error || historyError) && <ErrorMessage message={error || historyError} onDismiss={() => { setError(null); clearHistoryError() }} />}
+        <div className="editor-layout">
         <SummaryForm
           onSummaryGenerated={handleSummaryGenerated}
           onLoading={setLoading}
           onError={setError}
           initialType={currentType}
           isRegenerating={isRegenerating}
+          busy={loading || signingOut}
         />
-        
-        {(error || historyError) && (
-          <ErrorMessage
-            message={error || historyError}
-            onDismiss={() => {
-              setError(null)
-              clearHistoryError()
-            }}
-          />
-        )}
-        
-        {loading && <LoadingSpinner text={isRegenerating ? 'Regenerating summary...' : 'Generating summary...'} />}
-        
-        {currentSummary && (
-          <div className="mb-8">
             <SummaryResult
               summary={currentSummary}
+              title={currentTitle}
+              loading={loading}
+              canRegenerate={currentType === 'url' || Boolean(currentPdfBase64)}
               onRegenerate={handleRegenerate}
               isRegenerating={isRegenerating}
             />
-          </div>
-        )}
+        </div>
         
         <SummaryHistory
           summaries={summaries}
           loading={historyLoading}
           onDelete={deleteSummary}
           onView={handleViewSummary}
+          busy={loading || signingOut}
         />
+        <footer className="workspace-footer"><span>Article / Summarizer</span><span>A little less reading. A little more clarity.</span></footer>
       </main>
       
     </div>
